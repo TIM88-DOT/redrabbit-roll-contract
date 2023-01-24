@@ -20,10 +20,8 @@ contract RedRabbitLottery is VRFV2WrapperConsumerBase {
 
     struct RollStatus {
         uint256 fees;
-        uint256 randomWord;
         uint256 amount;
         address player;
-        bool fulfilled;
     }
     mapping(uint256 => RollStatus) public statuses;
 
@@ -68,9 +66,6 @@ contract RedRabbitLottery is VRFV2WrapperConsumerBase {
         uint256[] memory _randomWords
     ) internal override {
         require(statuses[_requestId].fees > 0, "Request not found");
-
-        statuses[_requestId].fulfilled = true;
-        statuses[_requestId].randomWord = _randomWords[0];
 
         RollStatus memory currentStatus = statuses[_requestId];
 
