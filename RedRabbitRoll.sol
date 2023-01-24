@@ -3,8 +3,9 @@ pragma solidity ^0.8.17;
 
 import "@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract RedRabbitLottery is VRFV2WrapperConsumerBase {
+contract RedRabbitLottery is VRFV2WrapperConsumerBase, Ownable {
     event RollRequest(
         uint256 requestId,
         address indexed player,
@@ -48,8 +49,13 @@ contract RedRabbitLottery is VRFV2WrapperConsumerBase {
             "Can't bet more than 5 % of the pool"
         );
 
+        require(
+            _amount > 10000000000000000000,
+            "Can't bet less than 100 tokens"
+        );
+
         redRabbitToken.transferFrom(msg.sender, address(this), _amount);
-        
+
         uint256 requestId = requestRandomness(
             callbackGasLimit,
             requestConfirmations,
@@ -91,5 +97,12 @@ contract RedRabbitLottery is VRFV2WrapperConsumerBase {
         returns (RollStatus memory)
     {
         return statuses[_requestId];
+    }
+
+    function emeregencyWithdraw() external onlyOwner {
+        redRabbitToken.transfer(
+            msg.sender,
+            redRabbitToken.balanceOf(address(this))
+        );
     }
 }
