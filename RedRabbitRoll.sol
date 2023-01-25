@@ -21,8 +21,10 @@ contract RedRabbitLottery is VRFV2WrapperConsumerBase, Ownable {
 
     struct RollStatus {
         uint256 fees;
+        uint256 randomWord;
         uint256 amount;
         address player;
+        bool fulfilled;
     }
     mapping(uint256 => RollStatus) public statuses;
 
@@ -32,7 +34,7 @@ contract RedRabbitLottery is VRFV2WrapperConsumerBase, Ownable {
     address constant vrfWrapperAddress =
         0x99aFAf084eBA697E584501b8Ed2c0B37Dd136693;
 
-    uint32 constant callbackGasLimit = 100_000;
+    uint32 constant callbackGasLimit = 300_000;
     uint32 constant numWords = 1;
     uint16 constant requestConfirmations = 3;
 
@@ -49,11 +51,6 @@ contract RedRabbitLottery is VRFV2WrapperConsumerBase, Ownable {
             "Can't bet more than 5 % of the pool"
         );
 
-        require(
-            _amount > 10000000000000000000,
-            "Can't bet less than 100 tokens"
-        );
-
         redRabbitToken.transferFrom(msg.sender, address(this), _amount);
 
         uint256 requestId = requestRandomness(
@@ -62,7 +59,13 @@ contract RedRabbitLottery is VRFV2WrapperConsumerBase, Ownable {
             numWords
         );
 
-        delete statuses[requestId];
+        statuses[requestId] = RollStatus({
+            fees: VRF_V2_WRAPPER.calculateRequestPrice(callbackGasLimit),
+            randomWord: 0,
+            amount: _amount,
+            player: msg.sender,
+            fulfilled: false
+        });
 
         emit RollRequest(requestId, msg.sender, _amount);
     }
@@ -73,6 +76,9 @@ contract RedRabbitLottery is VRFV2WrapperConsumerBase, Ownable {
     ) internal override {
         require(statuses[_requestId].fees > 0, "Request not found");
 
+        statuses[_requestId].fulfilled = true;
+        statuses[_requestId].randomWord = _randomWords[0];
+
         RollStatus memory currentStatus = statuses[_requestId];
 
         if (_randomWords[0] % 2 == 0) {
@@ -82,12 +88,12 @@ contract RedRabbitLottery is VRFV2WrapperConsumerBase, Ownable {
             );
             emit RollResult(
                 _requestId,
-                msg.sender,
+                currentStatus.player,
                 true,
-                currentStatus.amount * 2
+                currentStatus.amount
             );
         } else {
-            emit RollResult(_requestId, msg.sender, false, 0);
+            emit RollResult(_requestId, currentStatus.player, false, 0);
         }
     }
 
@@ -99,10 +105,10 @@ contract RedRabbitLottery is VRFV2WrapperConsumerBase, Ownable {
         return statuses[_requestId];
     }
 
-    function emeregencyWithdraw() external onlyOwner {
-        redRabbitToken.transfer(
-            msg.sender,
-            redRabbitToken.balanceOf(address(this))
-        );
+    function recoverToken(address _token) external onlyOwner {
+        uint256 balance = IERC20(_token).balanceOf(address(this));
+        require(balance != 0, "Cannot recover zero balance");
+
+        IERC20(_token).transfer(address(msg.sender), balance);
     }
 }
