@@ -30,9 +30,9 @@ contract RedRabbitLottery is VRFV2WrapperConsumerBase, Ownable {
 
     IERC20 public immutable redRabbitToken;
 
-    address constant linkAddress = 0x326C977E6efc84E512bB9C30f76E30c160eD06FB;
+    address constant linkAddress = 	0x514910771AF9Ca656af840dff83E8264EcF986CA;
     address constant vrfWrapperAddress =
-        0x99aFAf084eBA697E584501b8Ed2c0B37Dd136693;
+        	0x5A861794B927983406fCE1D062e00b9368d97Df6;
 
     uint32 constant callbackGasLimit = 300_000;
     uint32 constant numWords = 1;
@@ -40,7 +40,7 @@ contract RedRabbitLottery is VRFV2WrapperConsumerBase, Ownable {
 
     uint16 taxPercentage = 2;
     uint16 maxPercentage = 5;
-    uint16 minPercentage = 2;
+    uint minTokens = 800000*10**18;
 
     constructor(IERC20 _redRabbitToken)
         payable
@@ -57,8 +57,7 @@ contract RedRabbitLottery is VRFV2WrapperConsumerBase, Ownable {
         );
 
         require(
-            _amount >
-                (redRabbitToken.balanceOf(address(this)) * minPercentage) / 100,
+            _amount >= minTokens,
             "Can't bet less than the minimum"
         );
 
@@ -131,12 +130,11 @@ contract RedRabbitLottery is VRFV2WrapperConsumerBase, Ownable {
     }
 
     function setMaxPercentage(uint16 _maxPercentage) public onlyOwner {
-        require(_maxPercentage > minPercentage);
         maxPercentage = _maxPercentage;
     }
 
-    function setMinPercentage(uint16 _minPercentage) public onlyOwner {
-        require(_minPercentage < maxPercentage);
-        minPercentage = _minPercentage;
+    function setMinTokens(uint _minTokens) public onlyOwner {
+        minTokens=_minTokens;
+        
     }
 }
