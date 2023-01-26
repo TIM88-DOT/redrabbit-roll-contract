@@ -38,6 +38,10 @@ contract RedRabbitLottery is VRFV2WrapperConsumerBase, Ownable {
     uint32 constant numWords = 1;
     uint16 constant requestConfirmations = 3;
 
+    uint16 taxPercentage = 2;
+    uint16 maxPercentage = 5;
+    uint16 minPercentage = 2;
+
     constructor(IERC20 _redRabbitToken)
         payable
         VRFV2WrapperConsumerBase(linkAddress, vrfWrapperAddress)
@@ -47,9 +51,18 @@ contract RedRabbitLottery is VRFV2WrapperConsumerBase, Ownable {
 
     function roll(uint256 _amount) public {
         require(
-            _amount < (redRabbitToken.balanceOf(address(this)) / 10) / 2,
+            _amount <
+                (redRabbitToken.balanceOf(address(this)) * maxPercentage) / 100,
             "Can't bet more than 5 % of the pool"
         );
+
+        require(
+            _amount >
+                (redRabbitToken.balanceOf(address(this)) * minPercentage) / 100,
+            "Can't bet less than the minimum"
+        );
+
+        uint256 taxAmount = _amount - ((_amount * taxPercentage) / 100); // 2% of amount tax
 
         redRabbitToken.transferFrom(msg.sender, address(this), _amount);
 
@@ -62,7 +75,7 @@ contract RedRabbitLottery is VRFV2WrapperConsumerBase, Ownable {
         statuses[requestId] = RollStatus({
             fees: VRF_V2_WRAPPER.calculateRequestPrice(callbackGasLimit),
             randomWord: 0,
-            amount: _amount,
+            amount: taxAmount,
             player: msg.sender,
             fulfilled: false
         });
@@ -110,5 +123,20 @@ contract RedRabbitLottery is VRFV2WrapperConsumerBase, Ownable {
         require(balance != 0, "Cannot recover zero balance");
 
         IERC20(_token).transfer(address(msg.sender), balance);
+    }
+
+    function setTaxPercentage(uint16 _taxPercentage) public onlyOwner {
+        require(_taxPercentage <= 10, "Can't set more than 10% tax");
+        taxPercentage = _taxPercentage;
+    }
+
+    function setMaxPercentage(uint16 _maxPercentage) public onlyOwner {
+        require(_maxPercentage > minPercentage);
+        maxPercentage = _maxPercentage;
+    }
+
+    function setMinPercentage(uint16 _minPercentage) public onlyOwner {
+        require(_minPercentage < maxPercentage);
+        minPercentage = _minPercentage;
     }
 }
